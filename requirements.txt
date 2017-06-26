@@ -1,0 +1,7 @@
+To install CellMojo, a list of module needs to be installed
+
+1. opencv3.xx
+2. libtiff
+3. pymeanshift
+4. scipy
+5. matplot

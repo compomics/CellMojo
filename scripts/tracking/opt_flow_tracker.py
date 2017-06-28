@@ -5,42 +5,27 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
     """
     Optical Flow-based tracker
     """
-    old_gray = call_back_preprocessing.call_preprocessing(
-        firstImage, smoothingmethod)
-    initialpoints, boundingBox, _, _, CellInfo = call_back_segmentation.call_segmentation(segMeth, processedImage=old_gray,
-                                                                           rawImg=firstImage,
-                                                                           minAreaSize=exp_parameter[2],
-                                                                           maxAreaSize=exp_parameter[3],
-                                                                           fixscale=exp_parameter[4],
-                                                                           minDistance=exp_parameter[5],
-                                                                           cellEstimate=exp_parameter[1],
-                                                                                          color=int(exp_parameter[6]),
-                                                                                          thre=int(exp_parameter[7]))
-
-    # if initialpoints.shape != (len(initialpoints),1,2):
-    initialpoints = np.vstack(initialpoints)
-    initialpoints = initialpoints.reshape(len(initialpoints), 1, 2)
-
-    Initialtime = timelapse
-    detect_interval = 5
+    old_gray = call_back_preprocessing.call_preprocessing(firstImage, smooothingmethod)
+    initialpoints, boxes, _, _, CellInfo = call_back_segmentation.call_segmentation(segMeth, preImage=old_gray,
+                                                                                    rawImg=firstImage,
+                                                                                    minAreaSize=exp_parameter[2],
+                                                                                    maxAreaSize=exp_parameter[3],
+                                                                                    fixscale=exp_parameter[4],
+                                                                                    minDistance=exp_parameter[5],
+                                                                                    cellEstimate=exp_parameter[1],
+                                                                                    color=int(exp_parameter[6]),
+                                                                                    thre=int(exp_parameter[7]))
 
     noFrames = len(frames)
-
-    # training a knn model
+    Initialtime = timelapse
+    detect_interval = 1
     firstDetections, updatedTrackIdx, updateDetections, old_trackIdx = [], [], [], []
-    for indice, row in enumerate(initialpoints):
-        g, d = row.ravel()
-        firstDetections.append([g, d])
-        updatedTrackIdx.append(indice)
-        old_trackIdx.append(indice)
+    trajectoriesX, trajectoriesY, cellIDs, frameID, t, track_history, tracks, CellMorph = [], [], [], [], [], [], [], []
 
-    firstDetections = np.vstack(firstDetections)
-    updateDetections = firstDetections
-    neigh = NearestNeighbors(n_neighbors=1)
-    neigh.fit(firstDetections)
-
-    trajectoriesX, trajectoriesY, cellIDs, frameID, t, track_history, tracks = [
-    ], [], [], [], [], [], []
+    feature_params = dict(maxCorners=exp_parameter[1],  # how many pts. to locate
+                          qualityLevel=exp_parameter[4],  # b/w 0 & 1, min. quality below which everyone is rejected
+                          minDistance=exp_parameter[5],  # min eucledian distance b/w corners detected
+                          blockSize=7)
 
     for i, frame in enumerate(frames):
 
@@ -49,38 +34,88 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
                 if frame.shape[0] or frame.shape[1] > 500:
                     r = 500.0 / frame.shape[1]
                     dim = (500, int(frame.shape[0] * r))
+                    frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
 
-                    frame = cv2.resize(
-                        frame, dim, interpolation=cv2.INTER_AREA)
-
-            # make a copy of the frame for ploting reasons
+                    # make a copy of the frame for ploting reasons
             imagePlot = frame.copy()
 
             # show the progress bar
             progessbar.step(i * 2)
 
-            im = call_back_preprocessing.call_preprocessing(
-                frame, smoothingmethod)
+            frame_gray = call_back_preprocessing.call_preprocessing(frame, smooothingmethod)
 
-            # Parameters for lucas kanade optical flow
+            if len(frame_gray.shape) > 2:
+                frame_gray = cv2.cvtColor(frame_gray, cv2.COLOR_RGB2GRAY)
+
             lk_params = dict(winSize=(20, 20), maxLevel=3,
                              criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.5))
 
-            # do some calculations
-            newPoints, state, errorRate = cv2.calcOpticalFlowPyrLK(
-                old_gray, im, initialpoints, None, **lk_params)
+            if len(tracks) > 0:
+                img0, img1 = prev_gray, frame_gray
+                initPoints = np.float32([tr[-1] for tr in tracks]).reshape(-1, 1, 2)
+                point1, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, initPoints, None, **lk_params)
+                recPoints, st, err = cv2.calcOpticalFlowPyrLK(img1, img0, point1, None, **lk_params)
+                diff1 = abs(initPoints - recPoints).reshape(-1, 2).max(-1)
+                good = diff1 < 1
+                new_tracks = []
+                idx = 0
 
-            # Select good points
-            p1 = newPoints[state == 1]
+                # find new tracks
+                for tr, (x, y), good_flag in zip(tracks, point1.reshape(-1, 2), good):
+
+                    if not good_flag:
+                        continue
+                    tr.append((x, y))
+                    if len(tr) > track_len:
+                        del tr[0]
+                    new_tracks.append(tr)
+                    idx += 1
+
+                tracks = new_tracks
+                for _, tr_tmp in enumerate(tracks):
+                    pts = [np.int32(tr_tmp)]
+
+            if i % detect_interval == 0:
+
+                mask = np.zeros_like(frame_gray)
+                mask[:] = 255
+                for x, y in [np.int32(tr[-1]) for tr in tracks]:
+                    cv2.circle(mask, (x, y), 5, 0, -1)
+                p = cv2.goodFeaturesToTrack(frame_gray, mask=mask, **feature_params)
+
+                if p is not None:
+                    for x, y in np.float32(p).reshape(-1, 2):
+                        tracks.append([(x, y)])
+
+            # frame_idx += 1
+            prev_gray = frame_gray
             good_new = []
 
-            for _, row in enumerate(p1):
-                C2, D2 = row.ravel()
-                good_new.append([C2, D2])
-            # make the given detection matrix
+            for _, tr_tmp in enumerate(tracks):
+                pts = [np.int32(tr_tmp)]
+                x3, y4 = pts[0][0]
+                good_new.append([x3, y4])
 
-            if not good_new:
+            tracks = []
+
+            if i == 0 and good_new:
+                # training a knn model
+                good_new = np.vstack(good_new)
+                firstDetections, updatedTrackIdx, updateDetections, old_trackIdx = [], [], [], []
+                for indice, row in enumerate(good_new):
+                    g, d = row.ravel()
+                    firstDetections.append([g, d])
+                    updatedTrackIdx.append(indice)
+                    old_trackIdx.append(indice)
+
+                firstDetections = np.vstack(firstDetections)
+                updateDetections = firstDetections
+                neigh = NearestNeighbors(n_neighbors=1)
+                neigh.fit(firstDetections)
+
+            if len(good_new) == 0:
                 continue
+
             good_new = np.vstack(good_new)
 
             secondDetections = []
@@ -116,22 +151,21 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
                 cellId = updatedTrackIdx[ii]
                 a, b = new.ravel()
                 track_history.append([i, cellId, a, b, Initialtime])
+
                 if CellInfo:
                     tmp_inf = CellInfo[ii]
                     tmp_inf = tmp_inf[1:]
-                    tmpList = list(extra_modules.concatenateList(
-                        [i, int(cellId), tmp_inf]))
+                    tmpList = list(extra_modules.concatenateList([i, int(cellId), tmp_inf]))
                     CellMorph.append(tmpList)
 
                 # manage the displaying label
 
                 displayCoordinates(self, ii, a, b, Initialtime)
 
-            dataFrame = pd.DataFrame(track_history, columns=[
-                'frame_idx', 'track_no', 'x', 'y'])
+            dataFrame = pd.DataFrame(track_history, columns=['frame_idx', 'track_no', 'x', 'y', 't'])
 
             # review tracking
-            drawStr(imagePlot, (20, 20), 'track count: %d' % len(good_new))
+            draw_str(imagePlot, (20, 20), 'track count: %d' % len(good_new))
 
             if dataFrame is not None:
                 index_Values = dataFrame["track_no"]
@@ -144,8 +178,7 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
                 plt.imshow(cv2.cvtColor(imagePlot, cv2.COLOR_BGR2RGB))
 
                 for _, value in enumerate(np.unique(index_Values)):
-                    tr_index = dataFrame.track_no[dataFrame.track_no == int(
-                        value)].index.tolist()
+                    tr_index = dataFrame.track_no[dataFrame.track_no == int(value)].index.tolist()
 
                     xCoord = x_Values[tr_index]
                     yCoord = y_values[tr_index]
@@ -166,10 +199,8 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
                         del tmp_x
                         del tmp_y
                     else:
-                        # plt.contour(secondlargestcontour, (0,), colors='g',
-                        # linewidths=2)
-                        plt.text(xx, yy, "[%d]" % int(value),
-                                 fontsize=5, color='yellow')
+                        # plt.contour(secondlargestcontour, (0,), colors='g', linewidths=2)
+                        plt.text(xx, yy, "[%d]" % int(value), fontsize=5, color='yellow')
                         plt.plot(tmp_x, tmp_y, 'b-', linewidth=1)
 
                         if i == noFrames - 1 or i == noFrames:
@@ -188,13 +219,12 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
             fig.savefig(tmp_img)
 
             if i == noFrames - 1:
-                fig.savefig(
-                    path.join(str(tmp_dir[0]), 'frame{}.png'.format(i)))
+                fig.savefig(path.join(str(tmp_dir[0]), 'frame{}.png'.format(i)))
             del fig
 
             # Now update the previous frame and previous points
-            old_gray = im.copy()
-            initialpoints = p1.reshape(-1, 1, 2)
+            # old_gray = frame_gray.copy()
+            # initialpoints = p1.reshape(-1, 1, 2)
 
             # handle image in the displace panel
             img = cv2.imread(tmp_img)
@@ -202,34 +232,29 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
             r = 600.0 / img.shape[1]
             dim = (600, int(img.shape[0] * r))
 
-            # perform the actual resizing of the image and display it to the
-            # panel
+            # perform the actual resizing of the image and display it to the panel
             resized = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
-            common.save_image(tmp_dir[3], '%d.gif' % i, resized)
+            mahotas.imsave(path.join(tmp_dir[3], '%d.gif' % i), resized)
 
-            displayImage = tk.PhotoImage(
-                file=str(path.join(tmp_dir[3], '%d.gif' % i)))
+            displayImage = tk.PhotoImage(file=str(path.join(tmp_dir[3], '%d.gif' % i)))
             root.displayImage = displayImage
-            imagesprite = updateconvax.create_image(
-                263, 187, image=displayImage)
+            imagesprite = updateconvax.create_image(263, 187, image=displayImage)
             updateconvax.update_idletasks()  # Force redraw
             updateconvax.delete(imagesprite)
 
             if i == noFrames - 1:
-
-                displayImage = tk.PhotoImage(
-                    file=str(path.join(tmp_dir[3], '%d.gif' % i)))
+                displayImage = tk.PhotoImage(file=str(path.join(tmp_dir[3], '%d.gif' % i)))
                 root.displayImage = displayImage
-                imagesprite = updateconvax.create_image(
-                    263, 187, image=displayImage)
+                imagesprite = updateconvax.create_image(263, 187, image=displayImage)
 
         except EOFError:
             continue
-        # timelapse += Initialtime
+            # timelapse += Initialtime
 
     unpacked = zip(frameID, cellIDs, trajectoriesX, trajectoriesY)
-    with open(path.join(tmp_dir[2],  'data.csv'), 'wt') as f1:
+    with open(path.join(tmp_dir[2], 'data.csv'), 'wt') as f1:
         writer = csv.writer(f1, lineterminator='\n')
-        writer.writerow(('frameID', 'track_no', 'x', "y",))
+        writer.writerow(('frameID', 'track_no', 'x', 'y', 't'))
         for value in unpacked:
             writer.writerow(value)
+

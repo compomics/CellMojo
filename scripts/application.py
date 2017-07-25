@@ -1,16 +1,18 @@
 import os
 import re
+import sys
+sys.path.insert(0, r'/media/sami/3E4CCFEF2F1F91FB2/COMPOMICS/CellMojo/')
 
 import matplotlib.animation as animation
 from PIL import Image as img2
 from PIL import ImageSequence
 
-import call_back_preprocessing
+from common import call_back_preprocessing, call_segmentation
 import cv2
 import Filesprocessor
 import mahotas
 import pygubu
-import segmentation
+from CellMojo.app import segmentation
 import tkMessageBox
 import ttk
 from Tkinter import NE, E, N, W

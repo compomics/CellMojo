@@ -1,6 +1,13 @@
 # menu.py
 # -*- coding: utf-8 -*-
 
+import sys
+sys.path.append('./segmentation')
+sys.path.append('./tracking')
+sys.path.append('./morphology')
+sys.path.append('./preprocessing')
+sys.path.append('./gui')
+sys.path.append('./extra')
 
 # import operator
 import os
@@ -19,9 +26,8 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from sklearn.neighbors import NearestNeighbors
 
-import application
-import call_back_preprocessing
-import call_back_segmentation
+from extra import common, application
+
 import cv2
 import extra_modules
 

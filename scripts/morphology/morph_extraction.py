@@ -1,7 +1,7 @@
 """
 This module handles extraction of morphological features
 """
-from .. import common
+from extra import common
 
 # unused original third argument: firstImage (beteen frames and smoothingmethod)
 # unused original third- and second to last argument: progressbar, timelapse (before tmp_dir)

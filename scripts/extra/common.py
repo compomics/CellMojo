@@ -8,13 +8,18 @@ Methods will be added to this class as more code gets reformatted
 
 # imports
 import os.path
-
+import sys
 import mahotas
 import csv
 import cv2
-import scripts.preprocessing.preprocessing as preprocessing
-import scripts.segmentation.segmentation as segmentation
-
+sys.path.append('./preprocessing/')
+sys.path.append('./segmentation/')
+import preprocessing
+import segmentation
+# import scripts.preprocessing.preprocessing as preprocessing
+# import scripts.segmentation.segmentation as segmentation
+import preprocessing.preprocessing as preprocessing
+import segmentation.segmentation as segmentation
 try:
     import tkinter as tk  # for python 3
 except:

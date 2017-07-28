@@ -1,15 +1,12 @@
 # imports
-import sys
-sys.path.append('./extra')
-
-from extra import common
+from .. import common
 
 def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter, updateconvax, progessbar, timelapse, tmp_dir):
     """
     Optical Flow-based tracker
     """
-    old_gray = common.call_preprocessing(firstImage, smooothingmethod)
-    initialpoints, boxes, _, _, CellInfo = common.call_segmentation(segMeth, preImage=old_gray,
+    old_gray = call_back_preprocessing.call_preprocessing(firstImage, smooothingmethod)
+    initialpoints, boxes, _, _, CellInfo = call_back_segmentation.call_segmentation(segMeth, preImage=old_gray,
                                                                                     rawImg=firstImage,
                                                                                     minAreaSize=exp_parameter[2],
                                                                                     maxAreaSize=exp_parameter[3],
@@ -101,11 +98,6 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
 
             tracks = []
 
-            # remove lost tracks
-            if lostTracks:
-                for lost in lostTracks:
-                    updateDetections[lost] = np.hstack([0, 0])
-
             if i == 0 and good_new:
                 # training a knn model
                 good_new = np.vstack(good_new)
@@ -180,7 +172,7 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
                 x_Values = dataFrame["x"]
                 y_values = dataFrame["y"]
                 frameIDx = dataFrame["frame_idx"]
-                timeSeries =dataFrame["t"]
+                # timeSeries =dataFrame["time"]
 
                 fig = plt.figure()
                 plt.imshow(cv2.cvtColor(imagePlot, cv2.COLOR_BGR2RGB))
@@ -191,7 +183,7 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
                     xCoord = x_Values[tr_index]
                     yCoord = y_values[tr_index]
                     tmpFrameID = frameIDx[tr_index]
-                    timeStamp = timeSeries[tr_index]
+                    # timeStamp = timeSeries[tr_index]
                     tmpFrameID = np.int32(tmpFrameID)
                     tmp_x = np.int32(xCoord)
                     tmp_y = np.int32(yCoord)
@@ -209,24 +201,15 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
                     else:
                         # plt.contour(secondlargestcontour, (0,), colors='g', linewidths=2)
                         plt.text(xx, yy, "[%d]" % int(value), fontsize=5, color='yellow')
-                        plt.plot(tmp_x, tmp_y, 'g-', linewidth=1)
+                        plt.plot(tmp_x, tmp_y, 'b-', linewidth=1)
 
                         if i == noFrames - 1 or i == noFrames:
 
-                            for _, (xx, yy, idx,tmp_time) in enumerate(zip(tmp_x, tmp_y, tmpFrameID,timeStamp)):
+                            for _, (xx, yy, idx) in enumerate(zip(tmp_x, tmp_y, tmpFrameID)):
                                 trajectoriesX.append(xx)
                                 trajectoriesY.append(yy)
                                 cellIDs.append(value)
                                 frameID.append(idx)
-                                t.append(tmp_time)
-
-                    # detect lost tracks, we fix the number of frames to be 15
-                    if i > 6:
-                        delTrack = deleteLostTracks(value, tmpFrameID, i)
-                        if delTrack:
-                            lostTracks.append(delTrack)
-
-
 
             plt.axis('off')
             mng = plt.get_current_fig_manager()
@@ -268,7 +251,7 @@ def OptflowTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_param
             continue
             # timelapse += Initialtime
 
-    unpacked = zip(frameID, cellIDs, trajectoriesX, trajectoriesY, t)
+    unpacked = zip(frameID, cellIDs, trajectoriesX, trajectoriesY)
     with open(path.join(tmp_dir[2], 'data.csv'), 'wt') as f1:
         writer = csv.writer(f1, lineterminator='\n')
         writer.writerow(('frameID', 'track_no', 'x', 'y', 't'))

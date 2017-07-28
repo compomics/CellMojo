@@ -1,18 +1,29 @@
 import os
 import re
 import sys
-sys.path.insert(0, r'/media/sami/3E4CCFEF2F1F91FB2/COMPOMICS/CellMojo/')
+
+os_path = str(os.path)
+if 'posix' in os_path:
+    import posixpath as path
+elif 'nt' in os_path:
+    import ntpath as path
 
 import matplotlib.animation as animation
 from PIL import Image as img2
 from PIL import ImageSequence
 
-from common import call_back_preprocessing, call_segmentation
+import common
+import preprocessing.preprocessing as preprocessing
+import segmentation.segmentation as segmentation
+from common import call_preprocessing, call_segmentation
+import morphology.morph_extraction as morph_extraction
+from tracking.opt_flow_tracker import *
+from tracking.knn_tracker import *
 import cv2
 import Filesprocessor
 import mahotas
 import pygubu
-from CellMojo.app import segmentation
+
 import tkMessageBox
 import ttk
 from Tkinter import NE, E, N, W
@@ -79,7 +90,7 @@ class Application:
         self.builder = builder = pygubu.Builder()
 
         # 2: Load an ui file
-        builder.add_from_file('celltracker_html.ui')
+        builder.add_from_file('./gui/celltracker_html.ui')
 
         # 3: Create the widget using a master as parent
         self.mainwindow = builder.get_object('mainwindow', master)
@@ -245,11 +256,13 @@ class Application:
 
             mahotas.imsave(path.join(self.getFIleName,
                                      'displayImg.gif'), resized)
-            # image1 = img2.open(path.join(self.getFIleName, 'displayImg.gif'))
-
+            #image1 = img2.open(path.join(self.getFIleName, 'displayImg.gif'))
+            
             image1 = tk.PhotoImage(
                 file=str(path.join(self.getFIleName, 'displayImg.gif')))
-            root.image1 = image1
+
+            #print image1
+            self.convax1.image = image1
             _ = self.convax1.create_image(300, 185, image=image1)
 
     def popup(self):
@@ -283,13 +296,13 @@ class Application:
             self.callBack = tk.Button(
                 self.mainwindow, text="Done", command=self.popup())
             self.thre, frameID, classLabel = self.entryValue()
-            print(frameID)
+
             if frameID >= len(self.frames) or not frameID:
                 frameID = 0
 
-            if self.thre is empty or self.thre > 7:
+            if self.thre is [] or self.thre > 7:
                 self.thre = 4
-            if classLabel is empty:
+            if classLabel is []:
                 classLabel = 1
 
             frameID = int(frameID)
@@ -422,7 +435,7 @@ class Application:
                 tmp_convex, prev_image, self.image, preprocessedImage = [], [], [], []
 
                 self.image = self.frames[frameID].copy()
-                preprocessedImage12 = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage12 = common.call_preprocessing(self.image,
                                                                                  self.preproMethod)
                 _, _, prev_mask, prev_image, _ = segmentation.gredientSeg(preprocessedImage12, self.frames[frameID], self.minAreaSize,
                                                                           self.maxAreaSize, int(self.thre))
@@ -452,7 +465,7 @@ class Application:
 
         tmp_pre = tk.PhotoImage(
             file=str(path.join(self.segmentPreview_dir, 'SegImage.gif')))
-        root.tmp_pre = tmp_pre
+        self.preconvax.image = tmp_pre
         _ = self.preconvax.create_image(283, 182, image=tmp_pre)
 
     def delete_item(self):
@@ -721,7 +734,7 @@ class Application:
             # free the variable and allocate it to a new image
             self.image = []
             self.image = self.frames[0].copy
-            MorphExtraction(self, self.frames, self.image, int(self.preproMethod), int(self.segMethod),
+            morph_extraction(self, self.frames, self.image, int(self.preproMethod), int(self.segMethod),
                             self.exp_para,   self.trackconvax, self.progressdialog2, self.timelapse, self.tmp_path)
 
             """make a movie out of the track"""
@@ -800,7 +813,7 @@ class Application:
 
         # os.execv('CellMojo.py')
         python = sys.executable
-        os.execl(python, python, 'CellMojo.py')
+        os.execl(python, python, 'main.py')
 
     # move
     def move_start(self, event):

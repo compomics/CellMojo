@@ -1,5 +1,5 @@
 #imports
-from .. import common
+from extra import common
 
 def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter, updateconvax, progessbar, timelapse, tmp_dir):
     """

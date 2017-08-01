@@ -10,7 +10,7 @@ from skimage.feature import blob_log, peak_local_max
 from skimage.filter import rank
 from skimage.morphology import disk, watershed
 from skimage.util import img_as_ubyte
-
+from numpy import NaN
 import cv2
 import eGraphBasedSegment
 import extra_modules

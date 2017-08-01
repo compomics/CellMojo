@@ -1,7 +1,8 @@
 #imports
 from extra import common
+import time
 
-def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter, updateconvax, progessbar, timelapse, tmp_dir):
+def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter, updateconvax, progessbar, timelapse, tmp_dir, thre):
     """
     K-Nearest Neighbor tracker
     """
@@ -14,8 +15,8 @@ def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter
         ], [], [], [], [], [], [], [], [], [], [], [], []
 
     # do preprocessing followed by segmentation
-    old_gray = call_back_preprocessing.call_preprocessing(firstImage, smoothingmethod)
-    initialpoints, boxes, _, _, CellInfo = call_back_segmentation.call_segmentation(segMeth, preImage=old_gray,
+    old_gray = common.call_preprocessing(firstImage, smoothingmethod)
+    initialpoints, boxes, _, _, CellInfo = common.call_segmentation(segMeth, preImage=old_gray,
                                                                                     rawImg=firstImage,
                                                                                     minAreaSize=exp_parameter[2],
                                                                                     maxAreaSize=exp_parameter[3],

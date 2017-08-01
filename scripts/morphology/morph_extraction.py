@@ -59,7 +59,7 @@ def morph_extraction(frames, smoothingmethod, seg_method,
             common.save_image(tmp_dir[3], '%d.gif' % i, resized)
 
             display_image = common.tkinter_photoimage(str(common.join_path(tmp_dir[3], '%d.gif' % i)))
-            root.displayImage = display_image
+            updateconvax.displayImage = display_image
             imagesprite = updateconvax.create_image(
                 263, 187, image=display_image)
             updateconvax.update_idletasks()  # Force redraw
@@ -67,7 +67,7 @@ def morph_extraction(frames, smoothingmethod, seg_method,
 
             if i == amount_frames - 1 or i == amount_frames:
                 display_image = common.tkinter_photoimage(str(common.join_path(tmp_dir[3], '%d.gif' % i)))
-                root.displayImage = display_image
+                updateconvax.displayImage = display_image
                 imagesprite = updateconvax.create_image(
                     263, 187, image=display_image)
 

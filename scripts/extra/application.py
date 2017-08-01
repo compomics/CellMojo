@@ -1,22 +1,23 @@
 import os
 import re
 import sys
-
+sys.path.append('./morphology')
 os_path = str(os.path)
 if 'posix' in os_path:
     import posixpath as path
 elif 'nt' in os_path:
     import ntpath as path
-
+import time
 import matplotlib.animation as animation
 from PIL import Image as img2
 from PIL import ImageSequence
-
+import matplotlib.pyplot as plt
 import common
 import preprocessing.preprocessing as preprocessing
 import segmentation.segmentation as segmentation
+from morphology.morph_extraction import *
 from common import call_preprocessing, call_segmentation
-import morphology.morph_extraction as morph_extraction
+
 from tracking.opt_flow_tracker import *
 from tracking.knn_tracker import *
 import cv2
@@ -324,18 +325,18 @@ class Application:
                 if self.color.get() == 1:
                     self.image = []
                     self.image = self.frames[frameID]
-                    preprocessedImage1 = call_back_preprocessing.call_preprocessing(self.image,
+                    preprocessedImage1 = common.call_preprocessing(self.image,
                                                                                     self.preproMethod)
-                    _, _, _, prev_image, _ = black_background(
+                    _, _, _, prev_image, _ = segmentation.black_background(
                         preprocessedImage1, self.image, self.minAreaSize, self.maxAreaSize)
                     self.seg_display(prev_image)
 
                 if self.color.get() == 2:
                     self.image, prev_image = [], []
                     self.image = self.frames[frameID].copy()
-                    preprocessedImage2 = call_back_preprocessing.call_preprocessing(self.image,
+                    preprocessedImage2 = common.call_preprocessing(self.image,
                                                                                     self.preproMethod)
-                    _, _, _, prev_image, _ = white_background(
+                    _, _, _, prev_image, _ = segmentation.white_background(
                         preprocessedImage2, self.image, self.minAreaSize, self.maxAreaSize)
                     self.seg_display(prev_image)
 
@@ -344,9 +345,9 @@ class Application:
                 self.segTech = "hariss"
                 tmp_convex, self.image = [], []
                 self.image = self.frames[frameID].copy()
-                preprocessedImage3 = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage3 = common.call_preprocessing(self.image,
                                                                                 self.preproMethod)
-                _, _, prev_image = harris_corner(preprocessedImage3, int(self.cellEstimate), float(self.fixscale),
+                _, _, prev_image = segmentation.harris_corner(preprocessedImage3, int(self.cellEstimate), float(self.fixscale),
                                                  int(self.minDistance))
                 self.seg_display(prev_image)
 
@@ -354,7 +355,7 @@ class Application:
                 self.segTech = "shi"
                 tmp_convex, prev_image,  self.image = [], [], []
                 self.image = self.frames[frameID].copy()
-                preprocessedImage4 = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage4 = common.call_preprocessing(self.image,
                                                                                 int(self.preproMethod))
                 _, _, prev_image = shi_tomasi(preprocessedImage4, int(self.cellEstimate), float(self.fixscale),
                                               int(self.minDistance))
@@ -364,7 +365,7 @@ class Application:
                 self.segTech = "kmeans"
                 tmp_convex, prev_image, self.image = [], [], []
                 self.image = self.frames[frameID].copy()
-                preprocessedImage5 = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage5 = common.call_preprocessing(self.image,
                                                                                 int(self.preproMethod))
                 _, _, _, prev_image, _ = kmeansSegment(
                     preprocessedImage5, self.frames[frameID], 1, int(self.minAreaSize), int(self.maxAreaSize))
@@ -597,7 +598,7 @@ class Application:
                 startTime = time.time()
                 KNNTracker(self, self.frames, self.frames[0], int(self.preproMethod), int(self.segMethod),
                            self.exp_para,
-                           self.trackconvax, self.progressdialog2, self.timelapse, self.tmp_path)
+                           self.trackconvax, self.progressdialog2, self.timelapse, self.tmp_path, self.thre)
                 endtime = time.time() - startTime
 
                 print(endtime)
@@ -726,16 +727,17 @@ class Application:
                 os.makedirs(overlay_dir)
                 os.makedirs(self.display_dir)
 
-            self.tmp_path = [str(finalMorph_dir), str(
-                overlay_dir), str(csv_dir), str(self.display_dir)]
+            self.tmp_dir = [str(finalMorph_dir), str(overlay_dir), str(csv_dir), str(self.display_dir)]
+
             self.exp_para = [self.AverageSpeed, int(self.cellEstimate), self.minAreaSize, self.maxAreaSize,
                              self.fixscale, self.minDistance, int(self.color.get()), int(self.thre)]
 
             # free the variable and allocate it to a new image
             self.image = []
+            print self.tmp_dir
             self.image = self.frames[0].copy
-            morph_extraction(self, self.frames, self.image, int(self.preproMethod), int(self.segMethod),
-                            self.exp_para,   self.trackconvax, self.progressdialog2, self.timelapse, self.tmp_path)
+            morph_extraction(self.frames,  int(self.preproMethod), int(self.segMethod),
+                            self.exp_para, self.trackconvax,self.tmp_dir)
 
             """make a movie out of the track"""
             save_gif = True

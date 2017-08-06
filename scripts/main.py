@@ -18,9 +18,7 @@ import time
 from itertools import groupby
 from operator import itemgetter
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+
 # import scipy
 # from pylab import tk
 from scipy.ndimage import gaussian_filter1d

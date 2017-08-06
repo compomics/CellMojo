@@ -341,7 +341,7 @@ def kmeansSegment(image, raw_img, bestLabel, minAreaSize, maxAreaSize):
     return pts, rectang, mask_colored, image, cellFeatures
 
 
-def white_background(image, raw_image, minAreaSize, maxAreaSize):
+def white_backgroundMof(image, raw_image, minAreaSize, maxAreaSize):
     """ use watershed to to segment image with black background"""
 
     # parameters
@@ -745,6 +745,84 @@ def gredientSeg(preprocessedImage1, raw_image, minAreaSize, maxAreaSize, thre):
             pts.append([x, y])
     del thresh,  raw_image, preprocessedImage, preprocessedImage1, denoised, gradientIm
     return pts, rectang, mask_colored, imgDisplay, cellFeatures
+
+
+def white_background(preprocessedImage1, raw_image, minAreaSize, maxAreaSize):
+
+    # img = cv2.fastNlMeansDenoisingColored(img, None, 7, 7, 7, 41)
+    if len(preprocessedImage1.shape) >2:
+        preprocessedImage1 = cv2.cvtColor(preprocessedImage1, cv2.COLOR_BGR2GRAY)
+    preprocessedImage = img_as_ubyte(preprocessedImage1)  # denoise image
+    denoised = rank.median(preprocessedImage, disk(2))
+    # local ingredient
+    gray = rank.gradient(denoised, disk(2))
+
+    ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # noise removal
+    kernel = np.ones((3, 3), np.uint8)
+    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
+
+    # sure background area
+    sure_bg = cv2.dilate(opening, kernel, iterations=2)
+
+    # Finding sure foreground area
+    dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
+    ret, sure_fg = cv2.threshold(dist_transform, 0.05 * dist_transform.max(), 255, 0)
+
+    # Finding unknown region
+    sure_fg = np.uint8(sure_fg)
+    unknown = cv2.subtract(sure_bg, sure_fg)
+
+    # Marker labelling
+    ret, markers = cv2.connectedComponents(sure_fg)
+
+    # Add one to all labels so that sure background is not 0, but 1
+    markers = markers + 1
+
+    # Now, mark the region of unknown with zero
+    markers[unknown == 255] = 0
+
+    markers = cv2.watershed(raw_image, markers)
+    mask = np.zeros_like(gray, )
+
+    for label in np.unique(markers):
+        # if the label is zero, we are examining the 'background'
+        # so simply ignore it
+        if label == 0:
+            continue
+
+        # otherwise, allocate memory for the label region and draw
+        # it on the mask
+        mask[markers == -1] = 255
+
+    mergedImage = cv2.bitwise_and(mask, preprocessedImage1)
+    mergedImage = cv2.dilate(mergedImage, None)
+    # detect contours in the mask and grab the largest one
+    _, cnts, hierarchy = cv2.findContours(mergedImage.copy(), cv2.RETR_CCOMP,
+                                          cv2.CHAIN_APPROX_SIMPLE)
+    color = np.random.randint(0, 255, (len(cnts), 3))
+    mask_colored = np.zeros_like(raw_image, )
+    pts, rectang, cellFeatures = [], [], []
+
+    for (ii, cnt) in enumerate(cnts):
+        area = cv2.contourArea(cnt)
+        ((x, y), radius) = cv2.minEnclosingCircle(cnt)
+        rect = cv2.boundingRect(cnt)
+        (x1, y1, w1, h1) = rect
+
+        if area < 150 or area > 20000 or (hierarchy[0, ii, 3] != -1 or hierarchy[0, ii, 3] == 0):
+            continue
+        else:
+            cellMorph = getCellIntensityModule(cnt, raw_image)
+            cellFeatures.append(cellMorph)
+            cv2.drawContours(mask_colored, [cnt], -1, color[ii].tolist(), thickness=cv2.FILLED, )
+            cv2.drawContours(raw_image, [cnt], -1, (0, 255, 0), 1)
+            rectang.append((x1, y1, w1, h1))
+            pts.append([x, y])
+    del thresh, preprocessedImage, preprocessedImage1, denoised
+    return pts, rectang, mask_colored, raw_image, cellFeatures
+
 
 
 def maz_seg(image, rawIm, minAreaSize, maxAreaSize):

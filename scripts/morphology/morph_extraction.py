@@ -2,7 +2,7 @@
 This module handles extraction of morphological features
 """
 from extra import common
-
+import matplotlib.pyplot as plt
 # unused original third argument: firstImage (beteen frames and smoothingmethod)
 # unused original third- and second to last argument: progressbar, timelapse (before tmp_dir)
 def morph_extraction(frames, smoothingmethod, seg_method,
@@ -10,7 +10,6 @@ def morph_extraction(frames, smoothingmethod, seg_method,
     """
     Perform morphology extraction
     """
-
     amount_frames = len(frames)
 
     displayed_image, imagesprite = [], []

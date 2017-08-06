@@ -7,7 +7,7 @@ if 'posix' in os_path:
     import posixpath as path
 elif 'nt' in os_path:
     import ntpath as path
-import time
+import time, zipfile
 import matplotlib.animation as animation
 from PIL import Image as img2
 from PIL import ImageSequence
@@ -34,6 +34,7 @@ try:
 except:
     import Tkinter as tk  # for python 2
 
+from tkFileDialog import askopenfilename, asksaveasfilename
 
 class popupWindow(object):
     """
@@ -315,9 +316,9 @@ class Application:
                 # clear image content to avoid undesirable output
                 self.image = []
                 self.image = self.frames[frameID]
-                preprocessedImage = call_back_preprocessing.call_preprocessing(
+                preprocessedImage = common.call_preprocessing(
                     self.image, self.preproMethod)
-                _, _, _, prev_image = blob_seg(preprocessedImage)
+                _, _, _, prev_image = common.blob_seg(preprocessedImage)
                 self.seg_display(prev_image)
 
             if self.segMethod == 2:
@@ -357,7 +358,7 @@ class Application:
                 self.image = self.frames[frameID].copy()
                 preprocessedImage4 = common.call_preprocessing(self.image,
                                                                                 int(self.preproMethod))
-                _, _, prev_image = shi_tomasi(preprocessedImage4, int(self.cellEstimate), float(self.fixscale),
+                _, _, prev_image = segmentation.shi_tomasi(preprocessedImage4, int(self.cellEstimate), float(self.fixscale),
                                               int(self.minDistance))
                 self.seg_display(prev_image)
 
@@ -367,7 +368,7 @@ class Application:
                 self.image = self.frames[frameID].copy()
                 preprocessedImage5 = common.call_preprocessing(self.image,
                                                                                 int(self.preproMethod))
-                _, _, _, prev_image, _ = kmeansSegment(
+                _, _, _, prev_image, _ = segmentation.kmeansSegment(
                     preprocessedImage5, self.frames[frameID], 1, int(self.minAreaSize), int(self.maxAreaSize))
                 self.seg_display(prev_image)
 
@@ -375,7 +376,7 @@ class Application:
                 self.segTech = "graph"
                 tmp_convex, prev_image, self.image = [], [], []
                 self.image = self.frames[frameID].copy()
-                preprocessedImage6 = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage6 = common.call_preprocessing(self.image,
                                                                                 self.preproMethod)
                 _, _, _, prev_image, _ = segmentation.graphSegmentation(
                     preprocessedImage6, self.frames[frameID], self.minSize, self.minAreaSize, self.maxAreaSize)
@@ -385,9 +386,9 @@ class Application:
                 self.segTech = "meanshift"
                 tmp_convex, prev_image, self.image = [], [], []
                 self.image = self.frames[frameID].copy()
-                preprocessedImage7 = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage7 = common.call_preprocessing(self.image,
                                                                                 self.preproMethod)
-                _, _, _, prev_image, _ = meanshif(
+                _, _, _, prev_image, _ = segmentation.meanshif(
                     preprocessedImage7, self.frames[frameID], self.minAreaSize, self.maxAreaSize, int(self.fixscale * 100))
                 self.seg_display(prev_image)
 
@@ -395,9 +396,9 @@ class Application:
                 self.segTech = "sheet"
                 tmp_convex, prev_image, self.image = [], [], []
                 self.image = self.frames[frameID].copy()
-                preprocessedImage8 = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage8 = common.call_preprocessing(self.image,
                                                                                 self.preproMethod)
-                _, _,  _, prev_image, _ = sheetSegment(
+                _, _,  _, prev_image, _ = segmentation.sheetSegment(
                     preprocessedImage8, self.frames[frameID], self.minAreaSize, self.maxAreaSize)
                 self.seg_display(prev_image)
 
@@ -405,9 +406,9 @@ class Application:
                 self.segTech = "contour"
                 tmp_convex, prev_image, self.image = [], [], []
                 self.image = self.frames[frameID].copy()
-                preprocessedImage9 = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage9 = common.call_preprocessing(self.image,
                                                                                 self.preproMethod)
-                _, _, _, prev_image, _ = findContour(
+                _, _, _, prev_image, _ = segmentation.findContour(
                     preprocessedImage9, self.frames[frameID], self.minAreaSize, self.maxAreaSize)
                 self.seg_display(prev_image)
 
@@ -417,7 +418,7 @@ class Application:
                 self.image = self.frames[frameID].copy()
                 preprocessedImage = call_back_preprocessing.call_preprocessing(self.image,
                                                                                self.preproMethod)
-                _, _, _, prev_image, _ = threshold(
+                _, _, _, prev_image, _ = segmentation.threshold(
                     preprocessedImage, self.frames[frameID], self.minAreaSize, self.maxAreaSize)
                 self.seg_display(prev_image)
 
@@ -425,7 +426,7 @@ class Application:
                 self.segTech = "customized"
                 tmp_convex, prev_image, self.image, preprocessedImage = [], [], [], []
                 self.image = self.frames[frameID].copy()
-                preprocessedImage = call_back_preprocessing.call_preprocessing(self.image,
+                preprocessedImage = common.call_preprocessing(self.image,
                                                                                self.preproMethod)
                 _, _, _, prev_image, _ = segmentation.overlapped_seg(
                     preprocessedImage, self.frames[frameID], self.minAreaSize, self.maxAreaSize)
@@ -596,7 +597,7 @@ class Application:
                     self.cellEstimate), self.minAreaSize, self.maxAreaSize, self.fixscale, self.minDistance, int(self.color.get()), self.thre]
 
                 startTime = time.time()
-                KNNTracker(self, self.frames, self.frames[0], int(self.preproMethod), int(self.segMethod),
+                KNNTracker(self,self.frames, self.frames[0], int(self.preproMethod), int(self.segMethod),
                            self.exp_para,
                            self.trackconvax, self.progressdialog2, self.timelapse, self.tmp_path, self.thre)
                 endtime = time.time() - startTime
@@ -799,7 +800,7 @@ class Application:
             initialdir=self.getFIleName, filetypes=myFormats)
 
         if filenames:
-            zf = zipfile.ZipFile(os.path.join(filenames), 'w')
+            zf = zipfile.ZipFile(path.join(filenames), 'w')
 
             for dirname, subdirs, files in os.walk(self.getFIleName):
                 zf.write(dirname)

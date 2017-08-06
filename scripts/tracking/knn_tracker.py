@@ -1,8 +1,24 @@
 #imports
 from extra import common
 import time
+import csv,cv2, os
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter1d
+from sklearn.neighbors import NearestNeighbors
+import pandas as pd
+os_path = str(os.path)
+if 'posix' in os_path:
+    import posixpath as path
+elif 'nt' in os_path:
+    import ntpath as path
 
-def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter, updateconvax, progessbar, timelapse, tmp_dir, thre):
+try:
+    import tkinter as tk  # for python 3
+except:
+    import Tkinter as tk  # for python 2
+
+def KNNTracker(self,frames, firstImage, smoothingmethod, segMeth, exp_parameter, updateconvax, progessbar, timelapse, tmp_dir, thre):
     """
     K-Nearest Neighbor tracker
     """
@@ -23,8 +39,8 @@ def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter
                                                                                     fixscale=exp_parameter[4],
                                                                                     minDistance=exp_parameter[5],
                                                                                     cellEstimate=exp_parameter[1],
-                                                                                    color=int(exp_parameter[6],
-                                                                                              thre=thre))
+                                                                                    color=int(exp_parameter[6]),
+                                                                                    thre=thre)
 
     # if initialpoints.shape != (len(initialpoints), 1, 2):
     initialpoints = np.vstack(initialpoints)
@@ -60,16 +76,15 @@ def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter
             progessbar.step(i * 2)
 
             good_new, morphImage, nextFrame = [], [], []
-            nextFrame = call_back_preprocessing.call_preprocessing(frame, smoothingmethod)
-            p1, boxes, _, morphImage, CellInfo = call_back_segmentation.call_segmentation(segMeth, preImage=nextFrame,
+            nextFrame = common.call_preprocessing(frame, smoothingmethod)
+            p1, boxes, _, morphImage, CellInfo = common.call_segmentation(segMeth, preImage=nextFrame,
                                                                                           rawImg=oldFrame,
                                                                                           minAreaSize=exp_parameter[2],
                                                                                           maxAreaSize=exp_parameter[3],
                                                                                           fixscale=exp_parameter[4],
                                                                                           minDistance=exp_parameter[5],
                                                                                           cellEstimate=exp_parameter[1],
-                                                                                          color=int(
-                                                                                              exp_parameter[6]),
+                                                                                          color=int(exp_parameter[6]),
                                                                                           thre=int(thre))
 
             # different algorithms produce data with different shape and
@@ -127,17 +142,17 @@ def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter
                 # than 15 frames
                 if CellInfo:
                     tmp_inf = CellInfo[ii]
-                    tmpList = list(extra_modules.concatenateList([i, int(cellIdx), tmp_inf]))
+                    tmpList = list(common.concatenateList([i, int(cellIdx), tmp_inf]))
                     CellMorph.append(tmpList)
                 # display some info to the user interface
-                displayCoordinates(self, ii, a, b, Initialtime)
+                common.displayCoordinates(self,ii, a, b, Initialtime)
 
             dataFrame = pd.DataFrame(track_history, columns=[
                 'frame_idx', 'track_no', 'x', 'y', 'time'])
 
             # review tracking
-            drawStr(imagePlot, (20, 20), 'track count: %d' % len(good_new))
-            drawStr(morphImage, (20, 20), 'track count: %d' % len(good_new))
+            common.drawStr(imagePlot, (20, 20), 'track count: %d' % len(good_new))
+            common.drawStr(morphImage, (20, 20), 'track count: %d' % len(good_new))
             if dataFrame is not None:
                 index_Values = dataFrame["track_no"]
                 x_Values = dataFrame["x"]
@@ -186,7 +201,7 @@ def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter
 
                     # check  for lost tracks
                     if i > 6:
-                        delTrack = deleteLostTracks(value, tmpFrameID, i)
+                        delTrack = common.deleteLostTracks(value, tmpFrameID, i)
                         if delTrack:
                             lostTracks.append(delTrack)
             plt.axis('off')
@@ -213,7 +228,7 @@ def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter
             common.save_image(tmp_dir[3], '%d.gif' % i, resized)
 
             displayImage = tk.PhotoImage(file=str(path.join(tmp_dir[3], '%d.gif' % i)))
-            root.displayImage = displayImage
+            updateconvax.displayImage = displayImage
             imagesprite = updateconvax.create_image(
                 266, 189, image=displayImage)
             updateconvax.update_idletasks()  # Force redraw
@@ -221,7 +236,7 @@ def KNNTracker(self, frames, firstImage, smoothingmethod, segMeth, exp_parameter
 
             if i == noFrames - 1 or i == noFrames:
                 displayImage = tk.PhotoImage(file=str(path.join(tmp_dir[3], '%d.gif' % i)))
-                root.displayImage = displayImage
+                updateconvax.displayImage = displayImage
                 imagesprite = updateconvax.create_image(
                     263, 187, image=displayImage)
 

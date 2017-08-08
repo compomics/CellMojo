@@ -232,7 +232,7 @@ class Application:
             self.getFIleName = str(
                 self.path[matchedpattern[-1] + 1:  matchedpattern1[-1]])
             self.getFIleName = path.join(path.expanduser(
-                '~'), 'Documents', self.getFIleName)
+                '~'), '/media/sami/3E4CCFEF2F1F91FB2', self.getFIleName)
 
             self.segmentPreview_dir = path.join(
                 self.getFIleName, 'segment preview')

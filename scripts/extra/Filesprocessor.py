@@ -17,6 +17,17 @@ if 'posix' in os_path:
 elif 'nt' in os_path:
     import ntpath as path
 
+def convertBinaryToRGB(image):
+    "convert binary image to rgb"
+    return cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+
+def twoDimensionImage(image):
+
+    if len(image.shape) < 3:
+        return True
+    else:
+        return False
+
 
 def readFile(filepath, tmp_dir, probar):
     print(filepath)
@@ -31,7 +42,12 @@ def readFile(filepath, tmp_dir, probar):
                 # dim = (500, int(img.shape[0] * r))
 
                 # img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
-                cv2.imwrite(path.join(tmp_dir, "rawImg{}.png".format(cc)), img)
+                cv2.imwrite(path.join(tmp_dir, "image_{}.png".format(cc)), img)
+
+                dim = twoDimensionImage(img)
+                if dim is True:
+                    img = convertBinaryToRGB(img)
+
                 frames.append(img)
                 probar.step(cc)
                 probar.update()
@@ -43,7 +59,12 @@ def readFile(filepath, tmp_dir, probar):
                 # dim = (500, int(img.shape[0] * r))
                 # img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
-                cv2.imwrite(path.join(tmp_dir, "rawImg{}.png".format(cc)), img)
+                cv2.imwrite(path.join(tmp_dir, "image_{}.png".format(cc)), img)
+
+                dim = twoDimensionImage(img)
+                if dim is True:
+                    img = convertBinaryToRGB(img)
+
                 frames.append(img)
                 probar.stop()
             except EOFError:
@@ -67,7 +88,12 @@ def readFile(filepath, tmp_dir, probar):
                 # dim = (500, int(img.shape[0] * r))
                 # img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
-                cv2.imwrite(path.join(tmp_dir, "rawImg{}.png".format(cc)), img)
+                cv2.imwrite(path.join(tmp_dir, "image_{}.png".format(cc)), img)
+
+                dim = twoDimensionImage(img)
+                if dim is True:
+                    img = convertBinaryToRGB(img)
+
                 frames.append(img)
                 probar.step(cc)
                 probar.update()
@@ -87,7 +113,12 @@ def readFile(filepath, tmp_dir, probar):
             # dim = (500, int(img.shape[0] * r))
             # img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
-            cv2.imwrite(path.join(tmp_dir, "rawImg{}.png".format(cc)), img)
+            cv2.imwrite(path.join(tmp_dir, "image_{}.png".format(cc)), img)
+
+            dim = twoDimensionImage(img)
+            if dim is True:
+                img = convertBinaryToRGB(img)
+
             frames.append(img)
 
         except EOFError:
